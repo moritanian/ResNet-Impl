@@ -88,7 +88,6 @@ class ResNet(object):
 		else:
 			strides = (1,1)
 
-		#x = Conv2D(64, 3,3, padding='same')(inputs)
 		x = Conv2D(channel_size, 3,3, border_mode='same', init='he_normal', subsample=strides, bias=False, W_regularizer=l2(1e-4))(inputs)
 		x = BatchNormalization(axis=self.axis)(x)
 		x = Activation('relu')(x)
@@ -117,7 +116,7 @@ class ResNet(object):
 		loss = hist.history['loss']
 		val_loss = hist.history['val_loss']
 
-		# lossのグラフ
+		# loss graph
 		plt.plot(range(nb_epoch), loss, marker='.', label='loss')
 		plt.plot(range(nb_epoch), val_loss, marker='.', label='val_loss')
 		plt.legend(loc='best', fontsize=10)
@@ -129,7 +128,7 @@ class ResNet(object):
 		acc = hist.history['acc']
 		val_acc = hist.history['val_acc']
 
-		# accuracyのグラフ
+		# accuracy graph
 		plt.plot(range(nb_epoch), acc, marker='.', label='acc')
 		plt.plot(range(nb_epoch), val_acc, marker='.', label='val_acc')
 		plt.legend(loc='best', fontsize=10)
@@ -195,7 +194,7 @@ if __name__ == '__main__':
 	Y_test = np_utils.to_categorical(y_test, classes)
 
 
-	model = ResNet_CIFAR10_20( shape, classes)
+	model = ResNet_CIFAR10_32( shape, classes)
 
 	model.learn( X_train, Y_train, X_test, Y_test)
 
