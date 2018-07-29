@@ -27,6 +27,8 @@ from keras.layers.convolutional import (
     AveragePooling2D
 )
 
+from keras.layers.pooling import GlobalAveragePooling2D
+
 from keras.optimizers import SGD
 from keras.regularizers import l2, activity_l2
 from keras.callbacks import TensorBoard
@@ -41,18 +43,22 @@ from keras.utils.visualize_util import plot
 
 class ResNet(object):
 	
-	def __init__(self, shape, classes, blocks=[2,2,2,2]):
+	def __init__(self, shape, classes, blocks, CIFAR10=False):
 
-
+		self.CIFAR10 = CIFAR10
 		self.axis = 3
 
 		inputs = Input(shape=shape)
 
-		#x = Conv2D(64, 7,7, border_mode='same', subsample=(2,2), init='he_normal')(inputs)
-		x = Conv2D(64, 3,3, border_mode='same', subsample=(1,1), init='he_normal', bias=False, W_regularizer=l2(1e-4))(inputs)
+		if not CIFAR10:
+			x = Conv2D(64, 7,7, border_mode='same', subsample=(2,2), init='he_normal', bias=False, W_regularizer=l2(1e-4))(inputs)
+		else:
+			x = Conv2D(16, 3,3, border_mode='same', subsample=(1,1), init='he_normal', bias=False, W_regularizer=l2(1e-4))(inputs)
 		x = BatchNormalization(axis=self.axis)(x)
 		x = Activation('relu')(x)
-		#x = MaxPooling2D((3,3), border_mode='same', strides=(2,2))(x)
+		
+		if not CIFAR10:
+			x = MaxPooling2D((3,3), border_mode='same', strides=(2,2))(x)
 
 		channel_size = int(x.shape[self.axis]) # x.shape[index] : Dimension type
 
@@ -62,7 +68,8 @@ class ResNet(object):
 
 			channel_size *= 2
 
-		x = Flatten()(x)
+		x = GlobalAveragePooling2D()(x)
+
 		predictions = Dense(classes, activation='softmax')(x)
 		
 		self.model = Model(inputs, predictions)
@@ -131,16 +138,37 @@ class ResNet(object):
 		plt.ylabel('acc')
 		plt.show()
 
+
 class ResNet18(ResNet):
 
 	def __init__(self, shape, classes):
 		super().__init__(shape, classes, [2,2,2,2])
 
+
 class ResNet34(ResNet):
 
 	def __init__(self, shape, classes):
 		super().__init__(shape, classes, [3,4,6,3])
-	
+
+
+class ResNet_CIFAR10(ResNet):
+
+	def __init__(self, shape, classes, n):
+		super().__init__(shape, classes, [n,n,n], CIFAR10=True)
+
+
+class ResNet_CIFAR10_20(ResNet_CIFAR10):
+
+	def __init__(self, shape, classes):
+		super().__init__(shape, classes, 3)
+
+
+class ResNet_CIFAR10_32(ResNet_CIFAR10):
+
+	def __init__(self, shape, classes):
+		super().__init__(shape, classes, 5)
+
+
 
 if __name__ == '__main__':
 	shape, classes = (32, 32, 3), 10
@@ -167,7 +195,7 @@ if __name__ == '__main__':
 	Y_test = np_utils.to_categorical(y_test, classes)
 
 
-	model = ResNet18( shape, classes)
+	model = ResNet_CIFAR10_20( shape, classes)
 
 	model.learn( X_train, Y_train, X_test, Y_test)
 
