@@ -27,7 +27,8 @@ from keras.layers.convolutional import (
     AveragePooling2D
 )
 
-
+from keras.optimizers import SGD
+from keras.regularizers import l2, activity_l2
 from keras.callbacks import TensorBoard
 
 
@@ -35,11 +36,10 @@ from keras.datasets import cifar10
 from keras.utils import np_utils
 
 import matplotlib.pyplot as plt
-#from keras.utils.visualize_util import plot
-#from keras.utils.vis_utils import plot_model
+from keras.utils.visualize_util import plot
 
 
-class ResnetModel(object):
+class ResNet(object):
 	
 	def __init__(self, shape, classes, blocks=[2,2,2,2]):
 
@@ -49,35 +49,32 @@ class ResnetModel(object):
 		inputs = Input(shape=shape)
 
 		#x = Conv2D(64, 7,7, border_mode='same', subsample=(2,2), init='he_normal')(inputs)
-		x = Conv2D(64, 3,3, border_mode='same', subsample=(1,1), init='he_normal', bias=False)(inputs)
+		x = Conv2D(64, 3,3, border_mode='same', subsample=(1,1), init='he_normal', bias=False, W_regularizer=l2(1e-4))(inputs)
 		x = BatchNormalization(axis=self.axis)(x)
 		x = Activation('relu')(x)
 		#x = MaxPooling2D((3,3), border_mode='same', strides=(2,2))(x)
 
 		channel_size = int(x.shape[self.axis]) # x.shape[index] : Dimension type
 
-		print(channel_size)
 		for stage, block_size in enumerate(blocks):
 			for j in range(block_size):
 				x = self.block(x, channel_size)
 
 			channel_size *= 2
 
-		print(x.shape)
-		print(classes)
 		x = Flatten()(x)
 		predictions = Dense(classes, activation='softmax')(x)
 		
 		self.model = Model(inputs, predictions)
-		self.model.compile("sgd", "categorical_crossentropy", ["accuracy"])
+		sgd = SGD(decay=1e-4, momentum=0.9)
+		self.model.compile(optimizer=sgd, loss="categorical_crossentropy", metrics=["accuracy"])
 
-		#plot(model, to_file='./model.png')
+		plot(self.model, to_file='./model.png')
 
 
 	def block(self, inputs, channel_size ):
 		
 		change_size = inputs.shape[self.axis] != channel_size
-		print(change_size)
 
 		if change_size:
 			strides = (2,2)
@@ -85,14 +82,14 @@ class ResnetModel(object):
 			strides = (1,1)
 
 		#x = Conv2D(64, 3,3, padding='same')(inputs)
-		x = Conv2D(channel_size, 3,3, border_mode='same', init='he_normal', subsample=strides, bias=False)(inputs)
+		x = Conv2D(channel_size, 3,3, border_mode='same', init='he_normal', subsample=strides, bias=False, W_regularizer=l2(1e-4))(inputs)
 		x = BatchNormalization(axis=self.axis)(x)
 		x = Activation('relu')(x)
-		x = Conv2D(channel_size, 3,3, border_mode='same', init='he_normal', bias=False)(x)
+		x = Conv2D(channel_size, 3,3, border_mode='same', init='he_normal', bias=False, W_regularizer=l2(1e-4))(x)
 		x = BatchNormalization(axis=self.axis)(x)
 
 		if change_size:
-			shortcut = Conv2D(int(x.shape[self.axis]), 1,1, border_mode='same', init='he_normal', subsample=strides, bias=False)(inputs)
+			shortcut = Conv2D(int(x.shape[self.axis]), 1,1, border_mode='same', init='he_normal', subsample=strides, bias=False, W_regularizer=l2(1e-4))(inputs)
 			shortcut = BatchNormalization(axis=self.axis)(shortcut)
 		else:
 			shortcut = inputs
@@ -122,6 +119,29 @@ class ResnetModel(object):
 		plt.ylabel('loss')
 		plt.show()
 
+		acc = hist.history['acc']
+		val_acc = hist.history['val_acc']
+
+		# accuracyのグラフ
+		plt.plot(range(nb_epoch), acc, marker='.', label='acc')
+		plt.plot(range(nb_epoch), val_acc, marker='.', label='val_acc')
+		plt.legend(loc='best', fontsize=10)
+		plt.grid()
+		plt.xlabel('epoch')
+		plt.ylabel('acc')
+		plt.show()
+
+class ResNet18(ResNet):
+
+	def __init__(self, shape, classes):
+		super().__init__(shape, classes, [2,2,2,2])
+
+class ResNet34(ResNet):
+
+	def __init__(self, shape, classes):
+		super().__init__(shape, classes, [3,4,6,3])
+	
+
 if __name__ == '__main__':
 	shape, classes = (32, 32, 3), 10
 
@@ -147,7 +167,7 @@ if __name__ == '__main__':
 	Y_test = np_utils.to_categorical(y_test, classes)
 
 
-	model = ResnetModel( shape, classes)
+	model = ResNet18( shape, classes)
 
 	model.learn( X_train, Y_train, X_test, Y_test)
 
